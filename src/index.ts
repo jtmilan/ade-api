@@ -11,9 +11,19 @@ const app = new Hono();
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:8080", "http://127.0.0.1:8080", cfg.PUBLIC_APP_URL],
-    allowHeaders: ["Content-Type", "Authorization", "Stripe-Signature", "X-Dev-Webhook"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    origin: [
+      "http://localhost:8080",
+      "http://127.0.0.1:8080",
+      cfg.PUBLIC_APP_URL,
+    ],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Stripe-Signature",
+      "X-Dev-Webhook",
+      "Idempotency-Key",
+    ],
+    allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
   }),
 );
 
@@ -21,9 +31,18 @@ app.get("/health", (c) =>
   c.json({
     ok: true,
     service: "ade-api",
-    version: "0.1.0",
+    version: "0.2.0",
     stripeConfigured: Boolean(cfg.STRIPE_SECRET_KEY),
     webhookConfigured: Boolean(cfg.STRIPE_WEBHOOK_SECRET),
+    features: [
+      "entitlements",
+      "coupons",
+      "credits",
+      "campaigns",
+      "events",
+      "admin_console",
+      "personas",
+    ],
   }),
 );
 
