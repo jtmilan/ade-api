@@ -1,14 +1,19 @@
 import { getPlan, type PlanId } from "./plans";
 import { signEntitlements } from "./hmac";
-import type { SubStatus, UserRecord } from "../db/store";
+import type { PersonaRole, SubStatus, UserRecord } from "../db/store";
 
 export interface EntitlementsPayload {
   userId: string;
+  email: string;
+  role: PersonaRole;
   planId: PlanId;
   status: SubStatus;
   features: string[];
   limits: ReturnType<typeof getPlan>["limits"];
-  exp: number; // unix seconds
+  credits: { tokenBalance: number; handoffBalance: number };
+  promo: { code: string; label: string; endsAt: string | null } | null;
+  trialEndsAt: string | null;
+  exp: number;
   iat: number;
 }
 
@@ -19,12 +24,28 @@ export function buildEntitlements(
 ): { payload: EntitlementsPayload; payloadJson: string; sig: string } {
   const plan = getPlan(user.planId);
   const iat = Math.floor(Date.now() / 1000);
+  const features = [...plan.featureFlags];
+  if (user.role === "admin") {
+    features.push("feature.admin.console", "feature.credits.grant");
+  }
   const payload: EntitlementsPayload = {
     userId: user.id,
+    email: user.email,
+    role: user.role,
     planId: user.planId,
     status: user.status,
-    features: plan.featureFlags,
+    features,
     limits: plan.limits,
+    credits: { ...user.credits },
+    promo:
+      user.promoCode && user.promoLabel
+        ? {
+            code: user.promoCode,
+            label: user.promoLabel,
+            endsAt: user.promoEndsAt ?? null,
+          }
+        : null,
+    trialEndsAt: user.trialEndsAt,
     iat,
     exp: iat + ttlSec,
   };
