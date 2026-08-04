@@ -31,17 +31,20 @@ app.get("/health", (c) =>
   c.json({
     ok: true,
     service: "ade-api",
-    version: "0.2.0",
+    version: "0.3.0",
     stripeConfigured: Boolean(cfg.STRIPE_SECRET_KEY),
     webhookConfigured: Boolean(cfg.STRIPE_WEBHOOK_SECRET),
     features: [
       "entitlements",
+      "entitlements_verify",
+      "checkout_mock",
       "coupons",
       "credits",
       "campaigns",
       "events",
       "admin_console",
       "personas",
+      "hmac_webhooks",
     ],
   }),
 );

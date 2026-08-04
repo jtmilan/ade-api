@@ -38,7 +38,7 @@ export const PLANS: Plan[] = [
       handoffExportsDay: 5,
       prioritySupport: false,
     },
-    featureFlags: ["feature.merge.gate.basic", "feature.mcp.local"],
+    featureFlags: ["feature.merge.gate.basic", "feature.mcp.local", "feature.diff_pr"],
   },
   {
     id: "pro",
@@ -64,6 +64,9 @@ export const PLANS: Plan[] = [
       "feature.mcp.export",
       "feature.handoff.v2",
       "feature.mcp.local",
+      "feature.broadcast",
+      "feature.runbook",
+      "feature.diff_pr",
     ],
   },
   {
@@ -91,7 +94,12 @@ export const PLANS: Plan[] = [
       "feature.handoff.v2",
       "feature.mcp.local",
       "feature.org.recipes",
+      "feature.org_mcp",
+      "feature.shared_inbox",
       "feature.usage.api",
+      "feature.broadcast",
+      "feature.runbook",
+      "feature.diff_pr",
     ],
   },
 ];

@@ -51,6 +51,31 @@ export function v1Routes(cfg: Env) {
     return c.json({ entitlements: payload, payloadJson, sig, algorithm: "HMAC-SHA256" });
   });
 
+  /** Server-side verify (desktop can also verify client-side with matching secret). */
+  app.post("/entitlements/verify", async (c) => {
+    const body = z
+      .object({ payloadJson: z.string(), sig: z.string() })
+      .safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: "invalid_body" }, 400);
+    const { verifyEntitlementsSig } = await import("../lib/hmac");
+    const ok = verifyEntitlementsSig(
+      body.data.payloadJson,
+      body.data.sig,
+      cfg.ENTITLEMENTS_SIGNING_SECRET,
+    );
+    return c.json({ ok, algorithm: "HMAC-SHA256" });
+  });
+
+  app.get("/public/config", (c) =>
+    c.json({
+      algorithm: "HMAC-SHA256",
+      entitlementsPath: "/v1/entitlements",
+      checkoutPath: "/v1/checkout",
+      webhooksPath: "/v1/webhooks/stripe",
+      note: "Desktop verifies with ENTITLEMENTS_SIGNING_SECRET (dev) or public key (prod)",
+    }),
+  );
+
   app.get("/usage", (c) => {
     const auth = requireAuth(c, cfg);
     if (auth instanceof Response) return auth;
@@ -80,13 +105,31 @@ export function v1Routes(cfg: Env) {
       couponCode: z.string().optional(),
     }).safeParse(await c.req.json().catch(() => ({})));
     if (!body.success) return c.json({ error: "invalid_body" }, 400);
+
+    // Dev path: apply plan immediately so soft-gates refresh without real Stripe
+    if (cfg.ALLOW_DEV_AUTH || !cfg.STRIPE_SECRET_KEY) {
+      const user = store.getUser(auth.id);
+      if (user) {
+        user.planId = body.data.planId as PlanId;
+        user.status = "active";
+        if (body.data.couponCode) {
+          user.promoCode = body.data.couponCode;
+          user.promoLabel = `Checkout ${body.data.couponCode}`;
+        }
+      }
+    }
+
     const q = new URLSearchParams({ plan: body.data.planId, mock: "1" });
     if (body.data.couponCode) q.set("coupon", body.data.couponCode);
+    const success =
+      cfg.CHECKOUT_SUCCESS_URL ?? `${cfg.PUBLIC_APP_URL}/billing/success`;
     return c.json({
       mode: cfg.STRIPE_SECRET_KEY ? "live_stub" : "mock",
-      url: `${cfg.CHECKOUT_SUCCESS_URL ?? cfg.PUBLIC_APP_URL + "/billing/success"}?${q}`,
+      url: `${success}?${q}`,
       planId: body.data.planId,
       couponCode: body.data.couponCode ?? null,
+      sessionId: `cs_mock_${Date.now().toString(36)}`,
+      hint: "Open url in system browser; then GET /v1/entitlements to refresh",
     });
   });
 
